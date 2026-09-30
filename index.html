@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test</title>
+<style>
+  :root {
+    --bg: #e9eef5;
+    --ink: #17263c;
+    --muted: #5b6b82;
+    --accent: #2f5bea;
+    --accent-ink: #ffffff;
+    --line: #c9d3e2;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---------- Menu ---------- */
+  nav {
+    display: flex;
+    gap: 0.5rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--line);
+  }
+  nav button {
+    font: inherit;
+    font-weight: 600;
+    color: var(--muted);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    padding: 0.55rem 1.2rem;
+    cursor: pointer;
+  }
+  nav button[aria-selected="true"] {
+    color: var(--ink);
+    border-color: var(--ink);
+  }
+  nav button:focus-visible,
+  .ready-btn:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  /* ---------- Halaman ---------- */
+  main { flex: 1; position: relative; }
+  section {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+    gap: 2rem;
+  }
+  section.active { display: flex; }
+
+  h1 {
+    font-size: clamp(2rem, 7vw, 4.5rem);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    max-width: 14ch;
+  }
+
+  .ready-btn {
+    font: inherit;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--accent-ink);
+    background: var(--accent);
+    border: 0;
+    border-radius: 14px;
+    padding: 1rem 3rem;
+    cursor: pointer;
+    transition: transform 0.15s ease, background 0.2s ease;
+  }
+  .ready-btn:hover { transform: translateY(-2px); }
+  .ready-btn:active { transform: translateY(1px); }
+  .ready-btn.done { background: var(--ink); }
+
+  /* ---------- Video: tetap jalan (suara aktif) tapi tidak terlihat ---------- */
+  #hiddenVideo {
+    position: fixed;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+    left: 0;
+    bottom: 0;
+  }
+
+  .hai {
+    font-size: clamp(4rem, 22vw, 12rem);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ready-btn { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<nav role="tablist" aria-label="Menu">
+  <button role="tab" id="tab-ready" aria-selected="true" aria-controls="page-ready">Ready</button>
+  <button role="tab" id="tab-video" aria-selected="false" aria-controls="page-video">Video</button>
+</nav>
+
+<main>
+  <!-- Menu 1 -->
+  <section id="page-ready" class="active" role="tabpanel" aria-labelledby="tab-ready">
+    <h1>Are you ready for the test ?</h1>
+    <button class="ready-btn" id="readyBtn" type="button">Ready</button>
+  </section>
+
+  <!-- Menu 2 -->
+  <section id="page-video" role="tabpanel" aria-labelledby="tab-video">
+    <p class="hai">hai</p>
+  </section>
+</main>
+
+<!--
+  Ganti "video.mp4" dengan nama file videomu (taruh satu folder dengan index.html).
+  Video ini dibuat tak terlihat, tapi tetap berputar (loop) dan bersuara.
+-->
+<video id="hiddenVideo" src="video.mp4" loop playsinline preload="auto"></video>
+
+<script>
+  const tabs = {
+    ready: { btn: document.getElementById('tab-ready'), page: document.getElementById('page-ready') },
+    video: { btn: document.getElementById('tab-video'), page: document.getElementById('page-video') }
+  };
+  const video = document.getElementById('hiddenVideo');
+  const readyBtn = document.getElementById('readyBtn');
+
+  function show(name) {
+    for (const key in tabs) {
+      const active = key === name;
+      tabs[key].btn.setAttribute('aria-selected', active);
+      tabs[key].page.classList.toggle('active', active);
+    }
+    if (name === 'video') {
+      // Klik menu = interaksi pengguna, jadi browser mengizinkan suara.
+      video.muted = false;
+      video.play().catch(err => console.warn('Video gagal diputar:', err));
+    } else {
+      video.pause();
+    }
+  }
+
+  tabs.ready.btn.addEventListener('click', () => show('ready'));
+  tabs.video.btn.addEventListener('click', () => show('video'));
+
+  readyBtn.addEventListener('click', () => show('video'));
+</script>
+</body>
+</html>
