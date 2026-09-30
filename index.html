@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Test</title>
 <style>
   :root {
@@ -21,6 +21,8 @@
     font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
   }
 
   /* ---------- Menu ---------- */
@@ -45,13 +47,13 @@
     border-color: var(--ink);
   }
   nav button:focus-visible,
-  .ready-btn:focus-visible {
+  .btn:focus-visible {
     outline: 3px solid var(--accent);
     outline-offset: 3px;
   }
 
   /* ---------- Halaman ---------- */
-  main { flex: 1; position: relative; }
+  main { flex: 1; position: relative; min-height: 0; }
   section {
     position: absolute;
     inset: 0;
@@ -60,7 +62,7 @@
     align-items: center;
     justify-content: center;
     text-align: center;
-    padding: 2rem;
+    padding: 1rem;
     gap: 2rem;
   }
   section.active { display: flex; }
@@ -73,7 +75,7 @@
     max-width: 14ch;
   }
 
-  .ready-btn {
+  .btn {
     font: inherit;
     font-size: 1.25rem;
     font-weight: 700;
@@ -83,88 +85,341 @@
     border-radius: 14px;
     padding: 1rem 3rem;
     cursor: pointer;
-    transition: transform 0.15s ease, background 0.2s ease;
+    transition: transform 0.15s ease;
   }
-  .ready-btn:hover { transform: translateY(-2px); }
-  .ready-btn:active { transform: translateY(1px); }
-  .ready-btn.done { background: var(--ink); }
+  .btn:hover { transform: translateY(-2px); }
+  .btn:active { transform: translateY(1px); }
 
-  /* ---------- Video: tetap jalan (suara aktif) tapi tidak terlihat ---------- */
-  #hiddenVideo {
+  /* ---------- Game ---------- */
+  #page-game { padding: 0.75rem; }
+  #game {
+    height: 100%;
+    max-height: 640px;
+    aspect-ratio: 9 / 14;
+    max-width: 100%;
+    border-radius: 18px;
+    border: 2px solid var(--ink);
+    background: #cfe3f7;
+    touch-action: none;
+    cursor: pointer;
+    display: block;
+  }
+
+  /* ---------- Layar kalah (hanya suara, video tidak terlihat) ---------- */
+  #loseVideo {
     position: fixed;
+    left: 0;
+    bottom: 0;
     width: 1px;
     height: 1px;
     opacity: 0;
     pointer-events: none;
-    left: 0;
-    bottom: 0;
   }
-
-  .hai {
-    font-size: clamp(4rem, 22vw, 12rem);
-    font-weight: 800;
-    letter-spacing: -0.04em;
-    line-height: 1;
+  .overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    background: rgba(23, 38, 60, 0.65);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
   }
+  .overlay[hidden] { display: none; }
+  .lose-panel {
+    width: min(100%, 360px);
+    padding: 2rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    text-align: center;
+    color: var(--ink);
+    background: var(--bg);
+    border-radius: 18px;
+  }
+  .lose-panel h2 {
+    font-size: clamp(2.25rem, 9vw, 3.25rem);
+    letter-spacing: -0.02em;
+  }
+  .lose-panel p { font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--muted); }
 
   @media (prefers-reduced-motion: reduce) {
-    .ready-btn { transition: none; }
+    .btn { transition: none; }
   }
 </style>
 </head>
 <body>
 
 <nav role="tablist" aria-label="Menu">
-  <button role="tab" id="tab-ready" aria-selected="true" aria-controls="page-ready">Ready</button>
-  <button role="tab" id="tab-video" aria-selected="false" aria-controls="page-video">Video</button>
+  <button role="tab" id="tab-ready" aria-selected="true" aria-controls="page-ready">Home</button>
+  <button role="tab" id="tab-game" aria-selected="false" aria-controls="page-game">Game</button>
 </nav>
 
 <main>
   <!-- Menu 1 -->
   <section id="page-ready" class="active" role="tabpanel" aria-labelledby="tab-ready">
-    <h1>Are you ready for the test ?</h1>
-    <button class="ready-btn" id="readyBtn" type="button">Ready</button>
+    <h1>Flappy bird</h1>
+    <button class="btn" id="readyBtn" type="button">Play</button>
   </section>
 
   <!-- Menu 2 -->
-  <section id="page-video" role="tabpanel" aria-labelledby="tab-video">
-    <p class="hai">hai</p>
+  <section id="page-game" role="tabpanel" aria-labelledby="tab-game">
+    <canvas id="game" aria-label="Game burung: tap atau tekan spasi untuk terbang"></canvas>
   </section>
 </main>
 
 <!--
-  Ganti "video.mp4" dengan nama file videomu (taruh satu folder dengan index.html).
-  Video ini dibuat tak terlihat, tapi tetap berputar (loop) dan bersuara.
+  Video ini tidak terlihat, hanya suaranya yang diputar saat kalah.
+  Ganti "video.mp4" dengan nama file videomu (satu folder dengan index.html).
 -->
-<video id="hiddenVideo" src="video.mp4" loop playsinline preload="auto"></video>
+<video id="loseVideo" src="video.mp4" loop playsinline preload="auto"></video>
+
+<div class="overlay" id="loseOverlay" hidden>
+  <div class="lose-panel">
+    <h2>Kalah!</h2>
+    <p id="loseScore"></p>
+    <button class="btn" id="retryBtn" type="button">Main lagi</button>
+  </div>
+</div>
 
 <script>
-  const tabs = {
+  /* ================= Menu ================= */
+  const pages = {
     ready: { btn: document.getElementById('tab-ready'), page: document.getElementById('page-ready') },
-    video: { btn: document.getElementById('tab-video'), page: document.getElementById('page-video') }
+    game:  { btn: document.getElementById('tab-game'),  page: document.getElementById('page-game') }
   };
-  const video = document.getElementById('hiddenVideo');
-  const readyBtn = document.getElementById('readyBtn');
+  const overlay = document.getElementById('loseOverlay');
+  const loseVideo = document.getElementById('loseVideo');
+  const loseScore = document.getElementById('loseScore');
 
   function show(name) {
-    for (const key in tabs) {
+    for (const key in pages) {
       const active = key === name;
-      tabs[key].btn.setAttribute('aria-selected', active);
-      tabs[key].page.classList.toggle('active', active);
+      pages[key].btn.setAttribute('aria-selected', active);
+      pages[key].page.classList.toggle('active', active);
     }
-    if (name === 'video') {
-      // Klik menu = interaksi pengguna, jadi browser mengizinkan suara.
-      video.muted = false;
-      video.play().catch(err => console.warn('Video gagal diputar:', err));
+    if (name === 'game') {
+      primeVideo();
+      startGame();
     } else {
-      video.pause();
+      stopGame();
     }
   }
 
-  tabs.ready.btn.addEventListener('click', () => show('ready'));
-  tabs.video.btn.addEventListener('click', () => show('video'));
+  document.getElementById('tab-ready').addEventListener('click', () => show('ready'));
+  document.getElementById('tab-game').addEventListener('click', () => show('game'));
+  document.getElementById('readyBtn').addEventListener('click', () => show('game'));
 
-  readyBtn.addEventListener('click', () => show('video'));
+  /* ================= Suara saat kalah ================= */
+  // Dipanggil dari klik pengguna supaya browser (terutama iPhone) mengizinkan video diputar nanti.
+  function primeVideo() {
+    loseVideo.muted = true;
+    const p = loseVideo.play();
+    if (p) p.then(() => { loseVideo.pause(); loseVideo.currentTime = 0; }).catch(() => {});
+  }
+
+  function showLose() {
+    loseScore.textContent = 'Skor: ' + score + '  •  Terbaik: ' + best;
+    overlay.hidden = false;
+    loseVideo.currentTime = 0;
+    loseVideo.muted = false;
+    loseVideo.play().catch(() => {});
+    document.getElementById('retryBtn').focus();
+  }
+
+  function hideLose() {
+    overlay.hidden = true;
+    loseVideo.pause();
+    loseVideo.currentTime = 0;
+  }
+
+  document.getElementById('retryBtn').addEventListener('click', () => {
+    hideLose();
+    primeVideo();
+    resetGame();
+  });
+
+  /* ================= Game burung ================= */
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = 360, H = 560, GROUND = 64, RES = 2;
+  canvas.width = W * RES;
+  canvas.height = H * RES;
+  ctx.scale(RES, RES);
+
+  const GRAVITY = 1300;
+  const FLAP = -400;
+  const SPEED = 140;
+  const PIPE_W = 58;
+  const GAP = 160;
+  const PIPE_SPACING = 200;
+  const R = 13;
+
+  let state = 'idle';   // idle | play | over
+  let bird, pipes, score, best = 0, raf = 0, lastTime = 0, clock = 0;
+
+  function resetGame() {
+    bird = { x: 90, y: H / 2 - 40, vy: 0 };
+    pipes = [];
+    score = 0;
+    state = 'idle';
+  }
+
+  function startGame() {
+    hideLose();
+    resetGame();
+    cancelAnimationFrame(raf);
+    lastTime = performance.now();
+    raf = requestAnimationFrame(loop);
+  }
+
+  function stopGame() {
+    cancelAnimationFrame(raf);
+    hideLose();
+    state = 'idle';
+  }
+
+  function flap() {
+    if (state === 'idle') state = 'play';
+    if (state === 'play') bird.vy = FLAP;
+  }
+
+  function hitsPipe(p) {
+    const topH = p.gapY - GAP / 2;
+    const botY = p.gapY + GAP / 2;
+    return circleRect(bird.x, bird.y, R, p.x, 0, PIPE_W, topH) ||
+           circleRect(bird.x, bird.y, R, p.x, botY, PIPE_W, H - GROUND - botY);
+  }
+
+  function circleRect(cx, cy, r, rx, ry, rw, rh) {
+    const nx = Math.max(rx, Math.min(cx, rx + rw));
+    const ny = Math.max(ry, Math.min(cy, ry + rh));
+    const dx = cx - nx, dy = cy - ny;
+    return dx * dx + dy * dy < r * r;
+  }
+
+  function gameOver() {
+    state = 'over';
+    best = Math.max(best, score);
+    setTimeout(() => { if (state === 'over') showLose(); }, 450);
+  }
+
+  function update(dt) {
+    clock += dt;
+    if (state === 'idle') {
+      bird.y = H / 2 - 40 + Math.sin(clock * 4) * 6;
+      return;
+    }
+    if (state !== 'play') return;
+
+    bird.vy += GRAVITY * dt;
+    bird.y += bird.vy * dt;
+    if (bird.y - R < 0) { bird.y = R; bird.vy = 0; }
+
+    for (const p of pipes) p.x -= SPEED * dt;
+    if (pipes.length && pipes[0].x + PIPE_W < 0) pipes.shift();
+
+    const last = pipes[pipes.length - 1];
+    if (!last || last.x < W - PIPE_SPACING) {
+      const min = 100, max = H - GROUND - 100;
+      pipes.push({ x: W, gapY: min + Math.random() * (max - min), passed: false });
+    }
+
+    for (const p of pipes) {
+      if (!p.passed && p.x + PIPE_W < bird.x - R) { p.passed = true; score++; }
+      if (hitsPipe(p)) { gameOver(); return; }
+    }
+    if (bird.y + R > H - GROUND) { bird.y = H - GROUND - R; gameOver(); }
+  }
+
+  function drawPipe(p) {
+    const topH = p.gapY - GAP / 2;
+    const botY = p.gapY + GAP / 2;
+    const capH = 22, capX = p.x - 4, capW = PIPE_W + 8;
+    ctx.fillStyle = '#1f7a6d';
+    ctx.strokeStyle = '#124f46';
+    ctx.lineWidth = 3;
+    ctx.fillRect(p.x, 0, PIPE_W, topH);
+    ctx.strokeRect(p.x, 0, PIPE_W, topH);
+    ctx.fillRect(capX, topH - capH, capW, capH);
+    ctx.strokeRect(capX, topH - capH, capW, capH);
+    ctx.fillRect(p.x, botY, PIPE_W, H - GROUND - botY);
+    ctx.strokeRect(p.x, botY, PIPE_W, H - GROUND - botY);
+    ctx.fillRect(capX, botY, capW, capH);
+    ctx.strokeRect(capX, botY, capW, capH);
+  }
+
+  function drawBird() {
+    const angle = Math.max(-0.5, Math.min(1.1, bird.vy / 600));
+    ctx.save();
+    ctx.translate(bird.x, bird.y);
+    ctx.rotate(angle);
+    ctx.fillStyle = '#ef6a4b';
+    ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#17263c'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.fillStyle = '#f7b731';
+    ctx.beginPath(); ctx.moveTo(R - 2, -3); ctx.lineTo(R + 10, 2); ctx.lineTo(R - 2, 6); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(4, -4, 4.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#17263c';
+    ctx.beginPath(); ctx.arc(5.5, -4, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function draw() {
+    ctx.fillStyle = '#cfe3f7';
+    ctx.fillRect(0, 0, W, H);
+
+    for (const p of pipes) drawPipe(p);
+
+    ctx.fillStyle = '#d9c48f';
+    ctx.fillRect(0, H - GROUND, W, GROUND);
+    ctx.fillStyle = '#7fb069';
+    ctx.fillRect(0, H - GROUND, W, 10);
+
+    drawBird();
+
+    ctx.textAlign = 'center';
+    ctx.lineJoin = 'round';
+    ctx.font = '800 44px "Avenir Next", "Segoe UI", Arial, sans-serif';
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = '#17263c';
+    ctx.fillStyle = '#fff';
+    ctx.strokeText(score, W / 2, 70);
+    ctx.fillText(score, W / 2, 70);
+
+    if (state === 'idle') {
+      ctx.font = '700 22px "Avenir Next", "Segoe UI", Arial, sans-serif';
+      ctx.lineWidth = 5;
+      ctx.strokeText('Tap untuk terbang', W / 2, H / 2 + 50);
+      ctx.fillText('Tap untuk terbang', W / 2, H / 2 + 50);
+      ctx.font = '600 15px "Avenir Next", "Segoe UI", Arial, sans-serif';
+      ctx.lineWidth = 4;
+      ctx.strokeText('Jangan nabrak tiang', W / 2, H / 2 + 78);
+      ctx.fillText('Jangan nabrak tiang', W / 2, H / 2 + 78);
+    }
+  }
+
+  function loop(now) {
+    const dt = Math.min((now - lastTime) / 1000, 0.033);
+    lastTime = now;
+    update(dt);
+    draw();
+    raf = requestAnimationFrame(loop);
+  }
+
+  canvas.addEventListener('pointerdown', (e) => { e.preventDefault(); flap(); });
+  document.addEventListener('keydown', (e) => {
+    if ((e.code === 'Space' || e.code === 'ArrowUp') &&
+        pages.game.page.classList.contains('active') && overlay.hidden) {
+      e.preventDefault();
+      flap();
+    }
+  });
+
+  resetGame();
+  draw();
 </script>
 </body>
 </html>
